@@ -1,0 +1,25 @@
+{
+  "name": "opencode-notify",
+  "version": "1.0.0",
+  "description": "OpenCode plugin that sends desktop system notifications when tasks complete, errors occur, or approval is needed.",
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "opencode",
+    "plugin",
+    "notification",
+    "desktop-notification",
+    "notify"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@opencode-ai/plugin": "latest",
+    "typescript": "^5"
+  }
+}
