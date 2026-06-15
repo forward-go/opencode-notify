@@ -16,12 +16,30 @@ Get notified when the AI finishes a task, when it needs your approval, or when s
 
 | Platform | Method | Requirements |
 |----------|--------|--------------|
-| **WSL2** | `powershell.exe` WinRT Toast | Nothing extra — uses Windows built-in APIs |
+| **WSL2** | `powershell.exe` WinRT Toast | Nothing extra |
+| **Windows** (CMD / PowerShell / Git Bash) | PowerShell WinRT Toast | Nothing extra |
 | **Linux** | `notify-send` → `dbus-send` fallback | `libnotify-bin` (or any D-Bus notification daemon) |
 | **macOS** | `osascript` | Built-in |
-| **Windows** | PowerShell WinRT Toast | Built-in |
 
-WSL is auto-detected via `/proc/version`. The plugin routes to Windows toast notifications directly — no Linux notification daemon needed.
+WSL is auto-detected via `/proc/version`. Git Bash (MSYS2/MINGW) is auto-detected via `uname`. No manual configuration needed.
+
+## Verify Your Environment
+
+Not sure if notifications work on your system? Run the test script:
+
+**Linux / WSL / Git Bash:**
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/forward-go/opencode-notify/main/test-notify.sh)
+```
+
+**PowerShell / CMD:**
+
+```powershell
+irm https://raw.githubusercontent.com/forward-go/opencode-notify/main/test-notify.ps1 | iex
+```
+
+You should see a test toast notification pop up.
 
 ## Installation
 
@@ -48,7 +66,7 @@ cp src/*.ts ~/.config/opencode/plugins/
 cp src/*.ts .opencode/plugins/
 ```
 
-> **Tip:** For local installs you can also merge both files into a single `.ts` file to avoid module resolution issues. See [`opencode-notify.ts`](opencode-notify.ts) in this repo for a bundled single-file version.
+> **Tip:** For local installs you can also use the bundled single-file version — see [`opencode-notify.ts`](opencode-notify.ts).
 
 ## How It Works
 
@@ -56,15 +74,15 @@ The plugin hooks into three OpenCode events:
 
 | Hook / Event | Trigger | Notification |
 |---|---|---|
-| `session.idle` | AI finishes its turn | OpenCode ✅ Task complete |
-| `permission.ask` | Tool requests user approval | OpenCode ⚠️ Approval needed |
-| `session.error` | Session encounters an error | OpenCode ❌ Error occurred |
+| `session.idle` | AI finishes its turn | ✅ Task complete |
+| `permission.ask` | Tool requests user approval | ⚠️ Approval needed |
+| `session.error` | Session encounters an error | ❌ Error occurred |
 
 Each notification includes the session title (queried via the OpenCode SDK) so you know which task the notification is about.
 
-### WSL Technical Details
+### WSL / Windows Technical Details
 
-On WSL, the plugin:
+On WSL and native Windows, the plugin:
 
 1. Builds a PowerShell script using the WinRT Toast API
 2. Encodes it as UTF-16LE Base64 (PowerShell's `-EncodedCommand` format)
@@ -83,8 +101,11 @@ npm run typecheck
 
 ```
 src/
-├── index.ts    # Plugin entry — event hooks + session title lookup
-└── notify.ts   # Cross-platform notification dispatcher
+├── index.ts          # Plugin entry — event hooks + session title lookup
+└── notify.ts         # Cross-platform notification dispatcher
+opencode-notify.ts    # Bundled single-file version (for local install)
+test-notify.sh        # Environment test script (Linux / WSL / Git Bash)
+test-notify.ps1       # Environment test script (PowerShell / CMD)
 ```
 
 ## License
