@@ -5,6 +5,8 @@ if grep -qi microsoft /proc/version 2>/dev/null; then
   PLATFORM="wsl"
 elif [ "$(uname -s)" = "Darwin" ]; then
   PLATFORM="macos"
+elif case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) true;; *) false;; esac; then
+  PLATFORM="windows"
 elif [ "$(expr substr "$(uname -s)" 1 5)" = "Linux" ]; then
   PLATFORM="linux"
 else
@@ -13,16 +15,18 @@ fi
 echo "平台: $PLATFORM"
 
 case "$PLATFORM" in
-  wsl)
-    if command -v powershell.exe &>/dev/null; then
-      echo "powershell.exe: OK"
+  wsl|windows)
+    PS_EXE="powershell.exe"
+    command -v "$PS_EXE" &>/dev/null || PS_EXE="powershell"
+    if command -v "$PS_EXE" &>/dev/null; then
+      echo "$PS_EXE: OK"
       echo "正在发送测试通知..."
       PS='[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null; $d = New-Object Windows.Data.Xml.Dom.XmlDocument; $d.LoadXml('"'"'<toast><visual><binding template="ToastText02"><text id="1">OpenCode Notify</text><text id="2">Test notification - it works!</text></binding></visual></toast>'"'"'); $t = New-Object Windows.UI.Notifications.ToastNotification $d; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('"'"'Windows.SystemToast.PowerShell'"'"').Show($t)'
       ENC=$(echo -n "$PS" | iconv -t UTF-16LE | base64 -w 0)
-      powershell.exe -NoProfile -EncodedCommand "$ENC" 2>/dev/null
+      "$PS_EXE" -NoProfile -EncodedCommand "$ENC" 2>/dev/null
       echo "OK 已发送 — 检查 Windows 通知中心"
     else
-      echo "powershell.exe: 未找到"
+      echo "powershell: 未找到"
       echo "FAIL 不支持"
     fi
     ;;
