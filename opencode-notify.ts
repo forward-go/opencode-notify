@@ -7,16 +7,14 @@
  *   - session.error    → session errored
  *
  * Platform support:
- *   WSL → powershell.exe WinRT Toast
- *   Linux → notify-send, fallback dbus-send
+ *   WSL → powershell.exe → pwsh.exe → mshta.exe fallback chain
+ *   Linux → notify-send → dbus-send fallback
  *   macOS → osascript
- *   Windows → PowerShell WinRT Toast
+ *   Windows → powershell.exe → pwsh.exe → mshta.exe fallback chain
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
 import { readFileSync } from "node:fs"
-
-// ── Shell type ──────────────────────────────────────────────────────────────
 
 type ShellExpression = string | { toString(): string } | { raw: string } | ReadableStream | ShellExpression[]
 
@@ -27,8 +25,6 @@ interface ShellPromise extends Promise<unknown> {
 interface Shell {
   (strings: TemplateStringsArray, ...expressions: ShellExpression[]): ShellPromise
 }
-
-// ── Platform detection ──────────────────────────────────────────────────────
 
 type Platform = "linux" | "wsl" | "macos" | "windows" | "other"
 
@@ -49,8 +45,6 @@ function detectPlatform(): Platform {
     default: return "other"
   }
 }
-
-// ── Notification dispatch ───────────────────────────────────────────────────
 
 interface NotifyOptions {
   title: string
@@ -101,7 +95,7 @@ function escapeXml(s: string): string {
     .replace(/'/g, "&apos;")
 }
 
-function notifyWindows(shell: Shell, title: string, body: string): Promise<void> {
+function buildEncodedToast(title: string, body: string): string {
   const xml = `<toast><visual><binding template="ToastText02"><text id="1">${escapeXml(title)}</text><text id="2">${escapeXml(body)}</text></binding></visual></toast>`
   const script = [
     "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null",
@@ -111,8 +105,26 @@ function notifyWindows(shell: Shell, title: string, body: string): Promise<void>
     "$toast = New-Object Windows.UI.Notifications.ToastNotification $doc",
     "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Windows.SystemToast.PowerShell').Show($toast)",
   ].join("; ")
-  const encoded = Buffer.from(script, "utf16le").toString("base64")
-  return shell`powershell.exe -NoProfile -EncodedCommand ${encoded}`.quiet() as Promise<void>
+  return Buffer.from(script, "utf16le").toString("base64")
+}
+
+async function notifyWindows(shell: Shell, title: string, body: string): Promise<void> {
+  const encoded = buildEncodedToast(title, body)
+
+  // powershell.exe (5.1) → pwsh.exe (7+): same WinRT toast API
+  for (const ps of ["powershell.exe", "pwsh.exe"] as const) {
+    try {
+      await shell`${ps} -NoProfile -EncodedCommand ${encoded}`.quiet()
+      return
+    } catch {
+      // try next PowerShell or fall through to mshta
+    }
+  }
+
+  // Last resort: mshta.exe popup — no PowerShell needed, auto-dismiss in 10s
+  const safe = (s: string) => s.replace(/'/g, "\\'").replace(/\n/g, " ")
+  const js = `new ActiveXObject('WScript.Shell').Popup('${safe(body)}',10,'OpenCode: ${safe(title)}',64);close()`
+  await shell`mshta.exe javascript:${js}`.quiet()
 }
 
 // ── Plugin entry ────────────────────────────────────────────────────────────
