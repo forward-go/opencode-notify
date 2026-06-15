@@ -1,16 +1,11 @@
 /**
  * opencode-notify — Desktop notification plugin for OpenCode
  *
- * Sends system notifications when:
- *   - session.idle     → AI finished responding
- *   - permission.ask   → tool needs approval
- *   - session.error    → session errored
- *
  * Platform support:
- *   WSL → powershell.exe → pwsh.exe → mshta.exe fallback chain
- *   Linux → notify-send → dbus-send fallback
- *   macOS → osascript
- *   Windows → powershell.exe → pwsh.exe → mshta.exe fallback chain
+ *   WSL     → powershell.exe → pwsh.exe → msg.exe
+ *   Linux   → notify-send → dbus-send
+ *   macOS   → osascript
+ *   Windows → powershell.exe → pwsh.exe → msg.exe
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
@@ -111,20 +106,20 @@ function buildEncodedToast(title: string, body: string): string {
 async function notifyWindows(shell: Shell, title: string, body: string): Promise<void> {
   const encoded = buildEncodedToast(title, body)
 
-  // powershell.exe (5.1) → pwsh.exe (7+): same WinRT toast API
   for (const ps of ["powershell.exe", "pwsh.exe"] as const) {
     try {
       await shell`${ps} -NoProfile -EncodedCommand ${encoded}`.quiet()
       return
     } catch {
-      // try next PowerShell or fall through to mshta
+      // try next
     }
   }
 
-  // Last resort: mshta.exe popup — no PowerShell needed, auto-dismiss in 10s
-  const safe = (s: string) => s.replace(/'/g, "\\'").replace(/\n/g, " ")
-  const js = `new ActiveXObject('WScript.Shell').Popup('${safe(body)}',10,'OpenCode: ${safe(title)}',64);close()`
-  await shell`mshta.exe javascript:${js}`.quiet()
+  try {
+    await shell`msg.exe * /TIME:10 ${title}: ${body}`.quiet()
+  } catch {
+    // give up silently
+  }
 }
 
 // ── Plugin entry ────────────────────────────────────────────────────────────

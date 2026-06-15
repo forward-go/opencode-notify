@@ -1,17 +1,17 @@
 @echo off
 chcp 65001 >nul 2>nul
-echo === opencode-notify mshta demo ===
+echo === opencode-notify fallback demo (msg.exe) ===
 echo.
 echo [1/3] Task Complete
-mshta "javascript:new ActiveXObject('WScript.Shell').Popup('AI has finished responding',10,'OpenCode - Task Complete',64);close()"
+msg * /TIME:10 "OpenCode Task Complete: AI has finished responding"
 echo   done.
 echo.
 echo [2/3] Approval Needed
-mshta "javascript:new ActiveXObject('WScript.Shell').Popup('Tool execution requires permission',10,'OpenCode - Approval Needed',48);close()"
+msg * /TIME:10 "OpenCode Approval Needed: Tool requires permission"
 echo   done.
 echo.
 echo [3/3] Error
-mshta "javascript:new ActiveXObject('WScript.Shell').Popup('Session encountered an error',10,'OpenCode - Error',16);close()"
+msg * /TIME:10 "OpenCode Error: Session encountered an error"
 echo   done.
 echo.
 echo === demo finished ===

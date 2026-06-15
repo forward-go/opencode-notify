@@ -2,9 +2,9 @@
  * Cross-platform desktop notification sender.
  *
  * - Linux:   `notify-send` (libnotify), fallback `dbus-send`
- * - WSL:     `powershell.exe` → `pwsh.exe` → `mshta.exe`
+ * - WSL:     `powershell.exe` → `pwsh.exe` → `msg.exe`
  * - macOS:   `osascript` (display notification)
- * - Windows: `powershell.exe` → `pwsh.exe` → `mshta.exe`
+ * - Windows: `powershell.exe` → `pwsh.exe` → `msg.exe`
  *
  * Each method is wrapped in try/catch so a notification failure
  * never crashes the host process.
@@ -86,10 +86,6 @@ export async function notify(
   }
 }
 
-async function notifyLinuxDBus(shell: Shell, title: string, body: string): Promise<void> {
-  await shell`dbus-send --session --dest=org.freedesktop.Notifications --type=method_call /org/freedesktop/Notifications org.freedesktop.Notifications.Notify string:opencode uint32:0 string:dialog-information string:${title} string:${body} array:string: dict:string:string: int32:5000`.quiet()
-}
-
 // ── Windows / WSL ───────────────────────────────────────────────────────────
 
 function escapeXml(s: string): string {
@@ -123,12 +119,14 @@ async function notifyWindows(shell: Shell, title: string, body: string): Promise
       await shell`${ps} -NoProfile -EncodedCommand ${encoded}`.quiet()
       return
     } catch {
-      // try next PowerShell or fall through to mshta
+      // try next
     }
   }
 
-  // Last resort: mshta.exe popup — no PowerShell needed, auto-dismiss in 10s
-  const safe = (s: string) => s.replace(/'/g, "\\'").replace(/\n/g, " ")
-  const js = `new ActiveXObject('WScript.Shell').Popup('${safe(body)}',10,'OpenCode: ${safe(title)}',64);close()`
-  await shell`mshta.exe javascript:${js}`.quiet()
+  // Last resort: msg.exe — no PowerShell needed, auto-dismiss in 10s
+  try {
+    await shell`msg.exe * /TIME:10 ${title}: ${body}`.quiet()
+  } catch {
+    // give up silently
+  }
 }

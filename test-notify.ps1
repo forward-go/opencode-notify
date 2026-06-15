@@ -15,10 +15,9 @@ function Send-Toast {
     }
 }
 
-function Send-Mshta {
+function Send-Msg {
     try {
-        $js = "new ActiveXObject('WScript.Shell').Popup('Test - it works!',10,'OpenCode Notify',64);close()"
-        Start-Process -FilePath "mshta.exe" -ArgumentList "javascript:$js" -NoNewWindow -ErrorAction Stop
+        Start-Process -FilePath "msg.exe" -ArgumentList "*","/TIME:10","OpenCode Notify: Test - it works!" -NoNewWindow -ErrorAction Stop
         return $true
     } catch {
         return $false
@@ -27,16 +26,16 @@ function Send-Mshta {
 
 Write-Host "Trying WinRT Toast..."
 if (Send-Toast) {
-    Write-Host "OK Sent via Toast - check notification center"
+    Write-Host "OK Sent via Toast"
     exit 0
 }
 Write-Host "  Toast failed"
 
-Write-Host "Trying mshta.exe popup..."
-if (Send-Mshta) {
-    Write-Host "OK Sent via mshta.exe (popup dialog)"
+Write-Host "Trying msg.exe..."
+if (Send-Msg) {
+    Write-Host "OK Sent via msg.exe"
     exit 0
 }
-Write-Host "  mshta failed"
+Write-Host "  msg.exe failed"
 
 Write-Host "FAIL: No notification method available"

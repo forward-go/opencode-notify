@@ -19,10 +19,10 @@ build_encoded() {
   echo -n "$PS" | iconv -t UTF-16LE | base64 -w 0
 }
 
-try_mshta() {
-  if command -v mshta.exe &>/dev/null; then
-    mshta.exe "javascript:new ActiveXObject('WScript.Shell').Popup('Test - it works!',10,'OpenCode Notify',64);close()" 2>/dev/null
-    echo "OK 已发送 via mshta.exe (popup)"
+try_msg() {
+  if command -v msg.exe &>/dev/null; then
+    msg.exe * /TIME:10 "OpenCode Notify: Test - it works!" 2>/dev/null
+    echo "OK via msg.exe"
     return 0
   fi
   return 1
@@ -45,8 +45,8 @@ case "$PLATFORM" in
       fi
     done
     if [ "$SENT" = "0" ]; then
-      echo "所有 PowerShell 不可用, 尝试 mshta.exe..."
-      try_mshta || echo "FAIL 所有通知方式均不可用"
+      echo "PowerShell 不可用, 尝试 msg.exe..."
+      try_msg || echo "FAIL 所有通知方式均不可用"
     fi
     ;;
   linux)
