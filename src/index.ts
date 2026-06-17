@@ -17,7 +17,8 @@
  */
 
 import type { Plugin } from "@opencode-ai/plugin"
-import { detectPlatform, notify } from "./notify.js"
+import { detectPlatform, notify, resolveWindowsMethod } from "./notify.js"
+import type { WindowsMethod } from "./notify.js"
 
 type PluginInput = Parameters<Plugin>[0]
 type Client = PluginInput["client"]
@@ -35,9 +36,10 @@ async function getSessionTitle(client: Client, sessionID?: string): Promise<stri
   return undefined
 }
 
-export const NotifyPlugin: Plugin = async (ctx) => {
+export const NotifyPlugin: Plugin = async (ctx, options) => {
   const { $, client } = ctx
   const platform = detectPlatform()
+  const windowsMethod: WindowsMethod = resolveWindowsMethod(options as { method?: unknown } | undefined, platform)
 
   return {
     // Intentionally don't modify output.status — preserving the default "ask"
@@ -50,7 +52,7 @@ export const NotifyPlugin: Plugin = async (ctx) => {
         title: "OpenCode ⚠️ 需要审批",
         body,
         urgency: "critical",
-      })
+      }, windowsMethod)
     },
 
     event: async ({ event }) => {
@@ -62,7 +64,7 @@ export const NotifyPlugin: Plugin = async (ctx) => {
             title: "OpenCode ✅ 任务完成",
             body: sessionTitle ? `「${sessionTitle}」AI 已完成响应` : "AI 已完成响应，请查看结果",
             urgency: "normal",
-          })
+          }, windowsMethod)
           break
         }
 
@@ -73,7 +75,7 @@ export const NotifyPlugin: Plugin = async (ctx) => {
             title: "OpenCode ❌ 发生错误",
             body: sessionTitle ? `「${sessionTitle}」会话遇到错误` : "会话遇到错误，请检查详情",
             urgency: "critical",
-          })
+          }, windowsMethod)
           break
         }
       }

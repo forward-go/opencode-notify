@@ -16,12 +16,12 @@ Get notified when the AI finishes a task, when it needs your approval, or when s
 
 | Platform | Method | Requirements |
 |----------|--------|--------------|
-| **WSL2** | `powershell.exe` WinRT Toast | Nothing extra |
-| **Windows** (CMD / PowerShell / Git Bash) | PowerShell WinRT Toast | Nothing extra |
+| **WSL2** | `msg.exe` → BalloonTip fallback | Nothing extra |
+| **Windows** (CMD / PowerShell) | Configurable (see below) | Nothing extra |
 | **Linux** | `notify-send` → `dbus-send` fallback | `libnotify-bin` (or any D-Bus notification daemon) |
 | **macOS** | `osascript` | Built-in |
 
-WSL is auto-detected via `/proc/version`. Git Bash (MSYS2/MINGW) is auto-detected via `uname`. No manual configuration needed.
+WSL is auto-detected via `/proc/version`. No manual configuration needed.
 
 ## Verify Your Environment
 
@@ -39,7 +39,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/forward-go/opencode-notify/m
 irm https://raw.githubusercontent.com/forward-go/opencode-notify/main/test-notify.ps1 | iex
 ```
 
-You should see a test toast notification pop up.
+You should see a test notification pop up.
 
 ## Installation
 
@@ -56,17 +56,46 @@ Add to your `opencode.json`:
 
 ### Option B: Local file
 
-Copy [`src/index.ts`](src/index.ts) and [`src/notify.ts`](src/notify.ts) to your plugins directory:
+Copy [`opencode-notify.ts`](opencode-notify.ts) (bundled single-file) to your plugins directory:
 
 ```bash
 # Global (all projects)
-cp src/*.ts ~/.config/opencode/plugins/
+cp opencode-notify.ts ~/.config/opencode/plugins/
 
 # Project-level
-cp src/*.ts .opencode/plugins/
+cp opencode-notify.ts .opencode/plugins/
 ```
 
-> **Tip:** For local installs you can also use the bundled single-file version — see [`opencode-notify.ts`](opencode-notify.ts).
+## Configuration (Windows only)
+
+On native Windows, the notification method is configurable. WSL always uses `auto` for maximum compatibility.
+
+### Via config file
+
+Create `~/.config/opencode/notify.json` (global) or `.opencode/notify.json` (project-level):
+
+```json
+{
+  "method": "balloon"
+}
+```
+
+### Via plugin options (npm only)
+
+```json
+{
+  "plugin": [["opencode-notify", { "method": "msg" }]]
+}
+```
+
+### Method options
+
+| `method` | Behavior | When to use |
+|----------|----------|-------------|
+| `auto` (default) | `msg.exe` first, BalloonTip fallback | Works out of the box on most systems |
+| `balloon` | BalloonTip toast only | When you want toast notifications |
+| `msg` | `msg.exe` dialog only | When toast/balloon is silently suppressed |
+| `both` | BalloonTip then `msg.exe` | Guarantees at least one notification shows |
 
 ## How It Works
 
@@ -80,15 +109,15 @@ The plugin hooks into three OpenCode events:
 
 Each notification includes the session title (queried via the OpenCode SDK) so you know which task the notification is about.
 
-### WSL / Windows Technical Details
+### Windows / WSL Technical Details
 
-On WSL and native Windows, the plugin:
+**BalloonTip** uses `NotifyIcon.ShowBalloonTip` via PowerShell (`System.Windows.Forms`), encoded as UTF-16LE Base64 for `-EncodedCommand`. Renders as a native toast on Windows 10+.
 
-1. Builds a PowerShell script using the WinRT Toast API
-2. Encodes it as UTF-16LE Base64 (PowerShell's `-EncodedCommand` format)
-3. Executes via `powershell.exe`
+**msg.exe** uses `child_process.execFileSync` (not Bun shell) because Bun shell mangles `msg.exe` arguments — the `*` wildcard and Unicode characters cause `Invalid parameter(s)` errors. `execFileSync` passes args as an array, bypassing shell parsing entirely.
 
-This approach avoids all shell quoting/escaping issues between bash and PowerShell. All shell output is suppressed with `.quiet()` to prevent polluting the OpenCode TUI.
+**Why `auto` tries msg.exe first?** BalloonTip always exits 0 even when no toast appears (suppressed by Focus Assist, disabled notifications, etc.), making auto-fallback impossible when placed first. msg.exe exits non-zero on real failure, so it can anchor a working fallback chain.
+
+All shell output is suppressed with `.quiet()` / `stdio: "ignore"` to prevent polluting the OpenCode TUI.
 
 ## Development
 

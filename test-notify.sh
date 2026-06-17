@@ -15,7 +15,7 @@ fi
 echo "平台: $PLATFORM"
 
 build_encoded() {
-  local PS='[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null; [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom, ContentType = WindowsRuntime] | Out-Null; $d = New-Object Windows.Data.Xml.Dom.XmlDocument; $d.LoadXml('"'"'<toast><visual><binding template="ToastText02"><text id="1">OpenCode Notify</text><text id="2">Test - it works!</text></binding></visual></toast>'"'"'); $t = New-Object Windows.UI.Notifications.ToastNotification $d; [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('"'"'Windows.SystemToast.PowerShell'"'"').Show($t)'
+  local PS='Add-Type -AssemblyName System.Windows.Forms; $ni = New-Object System.Windows.Forms.NotifyIcon; $ni.Icon = [System.Drawing.SystemIcons]::Information; $ni.Visible = $true; $ni.ShowBalloonTip(10000, '"'"'OpenCode Notify'"'"', '"'"'Test - it works!'"'"', [System.Windows.Forms.ToolTipIcon]::Info); Start-Sleep -Milliseconds 1500; $ni.Dispose()'
   echo -n "$PS" | iconv -t UTF-16LE | base64 -w 0
 }
 
@@ -30,23 +30,23 @@ try_msg() {
 
 case "$PLATFORM" in
   wsl|windows)
-    ENC=$(build_encoded)
-    SENT=0
-    for PS_EXE in powershell.exe pwsh.exe; do
-      if command -v "$PS_EXE" &>/dev/null; then
-        echo "尝试 $PS_EXE..."
-        if "$PS_EXE" -NoProfile -EncodedCommand "$ENC" 2>/dev/null; then
-          echo "OK 已发送 via $PS_EXE (toast)"
-          SENT=1
-          break
-        else
-          echo "  $PS_EXE 执行失败"
+    echo "尝试 msg.exe..."
+    if try_msg; then
+      echo "msg.exe OK"
+    else
+      echo "msg.exe 不可用, 尝试 BalloonTip..."
+      ENC=$(build_encoded)
+      for PS_EXE in powershell.exe pwsh.exe; do
+        if command -v "$PS_EXE" &>/dev/null; then
+          echo "尝试 $PS_EXE..."
+          if "$PS_EXE" -NoProfile -EncodedCommand "$ENC" 2>/dev/null; then
+            echo "OK 已发送 via $PS_EXE (balloon)"
+            break
+          else
+            echo "  $PS_EXE 执行失败"
+          fi
         fi
-      fi
-    done
-    if [ "$SENT" = "0" ]; then
-      echo "PowerShell 不可用, 尝试 msg.exe..."
-      try_msg || echo "FAIL 所有通知方式均不可用"
+      done
     fi
     ;;
   linux)
