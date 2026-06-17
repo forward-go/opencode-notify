@@ -33,11 +33,7 @@ export function parseWindowsMethod(value: unknown): WindowsMethod {
 }
 
 // Priority: plugin options → .opencode/notify.json → ~/.config/opencode/notify.json → "auto"
-// WSL is excluded from config: msg.exe in WSL interop is unreliable, so WSL
-// always uses "auto" (msg.exe → BalloonTip fallback) for maximum compatibility.
 export function resolveWindowsMethod(options?: { method?: unknown }, platform?: Platform): WindowsMethod {
-  if (platform === "wsl") return "auto"
-
   if (options?.method) return parseWindowsMethod(options.method)
 
   const home = process.env.HOME || process.env.USERPROFILE || ""
@@ -152,9 +148,6 @@ async function sendMsg(shell: Shell, title: string, body: string): Promise<void>
   execFileSync("msg.exe", ["*", "/TIME:10", message], { stdio: "ignore", windowsHide: true })
 }
 
-// "auto" tries msg.exe first (reliable exit code), then BalloonTip fallback.
-// msg.exe exits non-zero on real failure; BalloonTip always exits 0 even when
-// no toast appears — so only msg.exe can anchor a working auto-fallback chain.
 async function notifyWindows(
   shell: Shell,
   title: string,
@@ -175,9 +168,9 @@ async function notifyWindows(
         break
       default:
         try {
-          await sendMsg(shell, title, body)
+          await sendBalloon(shell, title, body)
         } catch {
-          await sendBalloon(shell, title, body).catch(() => {})
+          await sendMsg(shell, title, body).catch(() => {})
         }
     }
   } catch {

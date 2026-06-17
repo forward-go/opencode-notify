@@ -66,9 +66,9 @@ cp opencode-notify.ts ~/.config/opencode/plugins/
 cp opencode-notify.ts .opencode/plugins/
 ```
 
-## Configuration (Windows only)
+## Configuration (Windows / WSL)
 
-On native Windows, the notification method is configurable. WSL always uses `auto` for maximum compatibility.
+The notification method is configurable on both native Windows and WSL.
 
 ### Via config file
 

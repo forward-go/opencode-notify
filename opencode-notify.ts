@@ -34,11 +34,7 @@ function parseWindowsMethod(value: unknown): WindowsMethod {
 }
 
 // Priority: plugin options → .opencode/notify.json → ~/.config/opencode/notify.json → "auto"
-// WSL is excluded from config: msg.exe in WSL interop is unreliable, so WSL
-// always uses "auto" (msg.exe → BalloonTip fallback) for maximum compatibility.
 function resolveWindowsMethod(options?: { method?: unknown }, platform?: Platform): WindowsMethod {
-  if (platform === "wsl") return "auto"
-
   if (options?.method) return parseWindowsMethod(options.method)
 
   const home = process.env.HOME || process.env.USERPROFILE || ""
@@ -174,9 +170,9 @@ async function notifyWindows(
         break
       default:
         try {
-          await sendMsg(shell, title, body)
+          await sendBalloon(shell, title, body)
         } catch {
-          await sendBalloon(shell, title, body).catch(() => {})
+          await sendMsg(shell, title, body).catch(() => {})
         }
     }
   } catch {
